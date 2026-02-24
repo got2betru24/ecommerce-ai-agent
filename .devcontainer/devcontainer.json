@@ -1,0 +1,70 @@
+{
+    "name": "E-Commerce Agent",
+  
+    // Use your existing compose setup rather than duplicating it
+    "dockerComposeFile": "../compose.yaml",
+  
+    // Primary service VS Code attaches to
+    "service": "backend",
+  
+    // The folder inside the container that maps to your project root
+    "workspaceFolder": "/app/backend/app",
+  
+    // Keep the compose stack running when you close VS Code
+    "shutdownAction": "stopCompose",
+  
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          // Python
+          "ms-python.python",
+          "ms-python.vscode-pylance",
+          "charliermarsh.ruff",
+  
+          // Frontend
+          "dbaeumer.vscode-eslint",
+          "esbenp.prettier-vscode",
+  
+          // Docker visibility from inside the container
+          "ms-azuretools.vscode-docker",
+  
+          // General
+          "eamodio.gitlens"
+        ],
+        "settings": {
+          // Point to the Python inside the container
+          "python.defaultInterpreterPath": "/usr/local/bin/python",
+  
+          // Ruff as the linter and formatter
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "[python]": {
+            "editor.defaultFormatter": "charliermarsh.ruff"
+          },
+  
+          // Pylance for IntelliSense
+          "python.languageServer": "Pylance",
+  
+          // Makes imports resolve correctly inside the package
+          "python.analysis.extraPaths": ["/app/backend"]
+        }
+      }
+    },
+  
+    // Forward ports so you can hit your services from the browser as normal
+    "forwardPorts": [
+      80,    // Traefik (main app)
+      8080,  // Traefik dashboard
+      8000,  // FastAPI direct
+      5173,  // Vite dev server
+      3306   // MySQL (useful for a DB client like TablePlus)
+    ],
+  
+    "portsAttributes": {
+      "80": { "label": "App (Traefik)" },
+      "8080": { "label": "Traefik Dashboard" },
+      "8000": { "label": "FastAPI" },
+      "5173": { "label": "Frontend (Vite)" },
+      "3306": { "label": "MySQL" }
+    }
+  }

@@ -1,0 +1,110 @@
+services:
+  ###################################################
+  # Service: traefik (Reverse Proxy)
+  ###################################################
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik-ecommerce
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - web-net
+
+  ###################################################
+  # Service: mysql (Database)
+  ###################################################
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-ecommerce
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # Persistent data volume so data survives container restarts
+      - mysql-data:/var/lib/mysql
+      # SQL files mounted here run automatically on first startup, in order
+      - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./sql/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+    expose:
+      - 3306
+    networks:
+      - web-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ###################################################
+  # Service: backend (FastAPI)
+  ###################################################
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-dev
+    volumes:
+      # Hot-reload: mount local code into container
+      - ./backend/app:/app/backend/app
+    env_file:
+      - .env
+    environment:
+      # Override DB_HOST — in Docker, mysql is the service name not localhost
+      - DB_HOST=mysql
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CORS_ORIGINS=http://localhost
+    labels:
+      traefik.enable: true
+      traefik.http.routers.backend.rule: PathPrefix(`/api`)
+      traefik.http.services.backend.loadbalancer.server.port: 8000
+    expose:
+      - 8000
+    networks:
+      - web-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  ###################################################
+  # Service: frontend (React/Vite)
+  ###################################################
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-dev
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    environment:
+      - VITE_API_BASE_URL=/api
+    labels:
+      traefik.enable: true
+      traefik.http.routers.frontend.rule: PathPrefix(`/`)
+      traefik.http.routers.frontend.priority: 1
+      traefik.http.services.frontend.loadbalancer.server.port: 5173
+    expose:
+      - 5173
+    networks:
+      - web-net
+    depends_on:
+      - backend
+
+###################################################
+# Networks and Volumes
+###################################################
+volumes:
+  mysql-data:
+
+networks:
+  web-net:
