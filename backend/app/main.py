@@ -32,24 +32,6 @@ async def health():
     return {"status": "healthy"}
 
 
-@router.get("/stream-test")
-async def stream_test():
-    async def generate():
-        yield 'data: {"type": "chunk", "text": "hello"}\n\n'
-        yield 'data: {"type": "done", "session_id": "test"}\n\n'
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
-
-
-@router.post("/post-test")
-async def post_test():
-    async def generate():
-        yield 'data: {"type": "chunk", "text": "post works"}\n\n'
-        yield 'data: {"type": "done", "session_id": "test"}\n\n'
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
-
-
 # Streaming chat endpoint
 @router.post("/chat")
 async def chat(request: ChatRequest):
